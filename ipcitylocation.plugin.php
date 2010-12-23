@@ -9,10 +9,10 @@ $Configuration['Plugins']['IpCityLocation']['Country'] = array('BY', 'MN', 'KZ',
 
 $PluginInfo['IpCityLocation'] = array(
 	'Name' => 'IpCityLocation',
-	'Description' => 'Geo IP solution.',
+	'Description' => 'IP Geolocation. Joint database of ipgeobase.ru and geolite.maxmind.com (for developers).',
 	'Version' => '1.3.2',
 	'Date' => '20 Dec 2010',
-	'Author' => 'Skinny',
+	'Author' => 'John Smith',
 	'RequiredPlugins' => array('PluginUtils' => '>=2.0.30')
 );
 
