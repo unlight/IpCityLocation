@@ -1,8 +1,6 @@
 <?php if (!defined('APPLICATION')) exit();
 
 /*
-TODO: Description. Add column by application
-
 CONFIG:
 $Configuration['Plugins']['IpCityLocation']['Country'] = array('BY', 'MN', 'KZ', 'UA');
 */
@@ -10,8 +8,8 @@ $Configuration['Plugins']['IpCityLocation']['Country'] = array('BY', 'MN', 'KZ',
 $PluginInfo['IpCityLocation'] = array(
 	'Name' => 'IpCityLocation',
 	'Description' => 'IP Geolocation. Joint database of ipgeobase.ru and geolite.maxmind.com (for developers).',
-	'Version' => '1.3.2',
-	'Date' => '20 Dec 2010',
+	'Version' => '1.3.8',
+	'Date' => '10 Jan 2010',
 	'Author' => 'John Smith',
 	'RequiredPlugins' => array('PluginUtils' => '>=2.0.30')
 );
@@ -39,7 +37,7 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		static $Cache;
 		if (!$RemoteAddr) $RemoteAddr = RemoteIP();
 		if (!is_numeric($RemoteAddr)) $RemoteAddr = ip2long($RemoteAddr);
-		if ($RemoteAddr == -1) return False;
+		if (!$RemoteAddr || $RemoteAddr == -1) return False;
 		if ($RemoteAddr < 0) $RemoteAddr = sprintf('%u', $RemoteAddr);
 		if (!isset($Cache[$RemoteAddr]) || $ResetCache) {
 			$Cache[$RemoteAddr] = Gdn::SQL()
