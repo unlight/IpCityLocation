@@ -1,0 +1,6 @@
+*.zip
+*.db
+*.txt
+/GeoLiteCity*
+/______________-__test-ip2city.php
+/cmd.lnk

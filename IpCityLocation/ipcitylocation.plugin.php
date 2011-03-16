@@ -8,45 +8,61 @@ $Configuration['Plugins']['IpCityLocation']['Country'] = array('BY', 'MN', 'KZ',
 $PluginInfo['IpCityLocation'] = array(
 	'Name' => 'IpCityLocation',
 	'Description' => 'IP Geolocation. Joint database of ipgeobase.ru and geolite.maxmind.com (for developers).',
-	'Version' => '1.3.8',
-	'Date' => '10 Jan 2010',
+	'Version' => '1.7.15',
+	'Date' => '16 Mar 2011',
 	'Author' => 'John Smith',
-	'RequiredPlugins' => array('PluginUtils' => '>=2.0.30')
+	'RequiredPlugins' => array('PluginUtils' => '>=2.4.84')
 );
 
-function GetCityNameByIp($RemoteAddr = False, $ResetCache = False, $Default = False) {
-	$Result = IpCityLocationPlugin::Get($RemoteAddr, $ResetCache);
-	$CityName = ObjectValue('CityName', $Result, $Default);
-	return $CityName;
+if (!function_exists('GetCityNameByIp')) {
+	function GetCityNameByIp($RemoteAddr = False, $ResetCache = False, $Default = False) {
+		$Result = IpCityLocationPlugin::Get($RemoteAddr, $ResetCache);
+		$CityName = ObjectValue('CityName', $Result, $Default);
+		return $CityName;
+	}
 }
 
 class IpCityLocationPlugin implements Gdn_IPlugin {
 	
-	// �ron: every 5-th day of month on 01:30
-	public function Tick_Match_30_Minutes_01_Hours_7_Day_Handler($Sender) {
+	public function PluginController_IpCityName_Create($Sender) {
+		$Ip = GetValue(0, $Sender->RequestArgs);
+		if (!is_numeric($Ip)) $Ip = sprintf('%u', ip2long($Ip));
+		$CityName = GetCityNameByIp($Ip, False, 'Москва');
+		echo $CityName;
+	}
+	
+	// Cron: every 5-th day of month on 01:30
+	public function Tick_Match_30_Minutes_01_Hours_7_Day_Handler() {
+		$Prefix = Gdn::SQL()->Database->DatabasePrefix;
 		ini_set('memory_limit', '512M');
 		$this->GetDataFromIpGeoBase();
+		Gdn::SQL()->Query("alter table {$Prefix}IpCityLocation order by IpDifference asc");
 		$this->GetDataFromGeoliteMaxmind();
-		$Prefix = Gdn::SQL()->Database->DatabasePrefix;
+		Gdn::SQL()->Query("alter table {$Prefix}IpCityLocation order by IpDifference asc");
 		Gdn::SQL()->Query("optimize table {$Prefix}IpCityLocation");
-		$Sender->FireEvent('IpCityLocationUpdate');
+		//if ($bPolygonField) TODO: ADD/DROP PRIMARY KEY
+		Gdn::PluginManager()->FireEvent('IpCityLocationUpdate');
 		SaveToConfig('Plugins.IpCityLocation.UpdateDate', Gdn_Format::ToDateTime());
 	}
 	
 	public static function Get($RemoteAddr = False, $ResetCache = False) {
-		static $Cache;
-		if (!$RemoteAddr) $RemoteAddr = RemoteIP();
-		if (!is_numeric($RemoteAddr)) $RemoteAddr = ip2long($RemoteAddr);
-		if (!$RemoteAddr || $RemoteAddr == -1) return False;
-		if ($RemoteAddr < 0) $RemoteAddr = sprintf('%u', $RemoteAddr);
+		static $Cache, $bPolygonField;
+		if ($bPolygonField === NULL) $bPolygonField = C('Plugins.IpCityLocation.PolygonField');
+		if (!$RemoteAddr) $RemoteAddr = GetIpAddress();
 		if (!isset($Cache[$RemoteAddr]) || $ResetCache) {
-			$Cache[$RemoteAddr] = Gdn::SQL()
+			$SQL = Gdn::SQL();
+			if ($bPolygonField) {
+				$RemoteAddr = $SQL->NamedParameter('RemoteAddr', False, $RemoteAddr);
+				$SQL->Where("mbrcontains(PolygonIpRange, pointfromwkb(point($RemoteAddr, 0)))", Null, False, False);
+			} else {
+				$SQL
+					->Where('IP2 >=', $RemoteAddr, False, False)
+					->Where('IP1 <=', $RemoteAddr, False, False)
+					->OrderBy('IpDifference', 'asc');
+			}
+			$Cache[$RemoteAddr] = $SQL
 				->Select('*')
-				->Select('IP2 - IP1', '', 'DifferenceA')
 				->From('IpCityLocation')
-				->Where('IP2 >=', $RemoteAddr, False, False)
-				->Where('IP1 <=', $RemoteAddr, False, False)
-				->OrderBy('DifferenceA', 'asc')
 				->Limit(1)
 				->Get()
 				->FirstRow();
@@ -54,8 +70,7 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		$Result = $Cache[$RemoteAddr];
 		return $Result;
 	}
-	
-	
+
 	private static function SaveFile($File) {
 		$Filename = dirname(__FILE__) . DS . pathinfo($File, PATHINFO_BASENAME);
 		if (!file_exists($Filename)) file_put_contents($Filename, file_get_contents($File));
@@ -102,7 +117,6 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 			$CountryCode = $CsvFields[1];
 			if (!in_array($CountryCode, $OnlyCountry)) continue;
 			// locId,country,region,city,postalCode,latitude,longitude,metroCode,areaCode
-			//$City = $CsvFields[3];
 			$Region = $CsvFields[2];
 			$LocationID = $CsvFields[0];
 			// translate to local language
@@ -123,15 +137,13 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		$Count = 1;
 		while (True) {
 			if ((++$Count % 100000) == 0) Console::Message('%dK...', (int)($Count/1000));
+			// startIpNum,endIpNum,locId
 			$CsvFields = fgetcsv($Resource);
 			if ($CsvFields === False) break;
-			// startIpNum,endIpNum,locId
+			if (!array_key_exists($CsvFields[2], $Locations)) continue;
 			$Fields = GetValue($CsvFields[2], $Locations);
-			if ($Fields === False) continue;
-			$Where = array('IP1' => $CsvFields[0], 'IP2' => $CsvFields[1]);
-			if ($SQL->GetCount('IpCityLocation', $Where) > 0) continue; // dont replace
-			$Fields = array_merge(array_filter($Fields), $Where);
-			$SQL->Insert('IpCityLocation', $Fields);
+			$Fields = array_merge(array_filter($Fields), array('IP1' => $CsvFields[0], 'IP2' => $CsvFields[1]));
+			self::StaticSave($Fields);
 		}
 		fclose($Resource);
 		Console::Message('Cleanup...');
@@ -139,25 +151,47 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		$this->RemoveGarbage();
 	}
 	
+	protected static function StaticSave($Fields) {
+		$SQL = Gdn::SQL();
+		$Prefix = $SQL->Database->DatabasePrefix;
+		$IP2 = $Fields['IP2'];
+		$IP1 = $Fields['IP1'];
+		$Fields['IpDifference'] = $IP2 - $IP1;
+		
+		$Columns = $Values = $InputParameters = array();
+		foreach($Fields as $Field => $Value) {
+			$Columns[] = $Field;
+			$Values[] = ":$Field";
+			$InputParameters[":$Field"] = $Value;
+		}
+		$Columns[] = 'PolygonIpRange';
+		$Values[] = "geomfromwkb(polygon(linestring(point($IP1, -1), point($IP2, -1), point($IP2, 1), point($IP1, 1), point($IP1, -1))))";
+		$Columns = implode(', ', $Columns);
+		$Values = implode(', ', $Values);
+		$Sql = "insert {$Prefix}IpCityLocation ($Columns) values($Values)";
+
+		try {
+			$SQL->Database->Query($Sql, $InputParameters);
+		} catch (Exception $Ex) {
+			Console::Message($Ex->GetMessage());
+		}
+	}
+	
 	public function GetDataFromIpGeoBase() {
 		Console::Message('Getting database from ipgeobase');
 		$File = 'http://ipgeobase.ru/files/db/Main/db_files.zip';
 		self::SaveFile($File);
 		$GeoFile = file(dirname(__FILE__).DS.'cidr_ru_block.txt');
-		$SQL = Gdn::SQL();
-		$SQL->Delete('IpCityLocation', array('CountryCode' => 'RU'));
-		$Columns = array_keys($SQL->FetchTableSchema('IpCityLocation'));
+		Gdn::SQL()->Delete('IpCityLocation', array('CountryCode' => 'RU'));
+		$Columns = array_keys(Gdn::SQL()->FetchTableSchema('IpCityLocation'));
+		$TxtColumns = array('IP1', 'IP2', 'IpRange', 'CountryCode', 'CityName', 'Region', 'District');
+		
 		for ($Count = count($GeoFile), $i = 0; $i < $Count; $i++) {
 			if (($i % 10000) == 0) Console::Message('%dK and inserting...', (int)($i/10000));
 			$GeoFile[$i] = mb_convert_encoding($GeoFile[$i], 'utf-8', 'windows-1251');
-			$RowArray = explode("\t", $GeoFile[$i]);
-			$Fields = array_combine(array('IP1', 'IP2', 'IpRange', 'CountryCode'), array_slice($RowArray, 0, 4));
-			$Where = array('IP1' => $Fields['IP1'], 'IP2' => $Fields['IP2']);
-			$Fields['CityName'] = $RowArray[4];
-			$Fields['Region'] = $RowArray[5];
-			$Fields['District'] = $RowArray[6];
-			// TODO: Insert / Update in try
-			$SQL->Replace('IpCityLocation', $Fields, $Where);
+			$RowArray = array_slice(explode("\t", $GeoFile[$i]), 0, 7);
+			$Fields = array_combine($TxtColumns, $RowArray);
+			self::StaticSave($Fields);
 		}
 		Console::Message('Removing temp files...');
 		$this->RemoveGarbage();
@@ -167,18 +201,55 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		$Garbage = SafeGlob(dirname(__FILE__).DS.'*.*', array('zip', 'db', 'txt'));
 		foreach($Garbage as $F) unlink($F);
 	}
+
+	// plugin/reenableipcitylocation
+	public function PluginController_ReEnableIpCityLocation_Create($Sender) {
+		$Sender->Permission('Garden.Admin.Only');
+		$Session = Gdn::Session();
+		$TransientKey = $Session->TransientKey();
+		RemoveFromConfig('EnabledPlugins.IpCityLocation');
+		Redirect('settings/plugins/all/IpCityLocation/'.$TransientKey);
+	}
 	
 	public function Structure() {
-		Gdn::Structure()
+		
+		$Construct = Gdn::Structure();
+		$SQL = Gdn::SQL();
+		$Prefix = $SQL->Database->DatabasePrefix;
+		
+		$Construct
+			->Table('IpCityLocation');
+		
+		$Construct
 			->Table('IpCityLocation')
 			->Column('IP1', 'uint', False, 'primary')
 			->Column('IP2', 'uint', False, 'primary')
 			->Column('IpRange', 'char(35)')
+			->Column('IpDifference', 'int', 0)
 			->Column('CountryCode', 'char(2)')
 			->Column('CityName', 'char(50)') // local city name
 			->Column('Region', 'char(70)')
 			->Column('District', 'char(35)')
 			->Set();
+		
+		try {
+			$Construct->Query("alter table {$Prefix}IpCityLocation add column `PolygonIpRange` polygon not null after `IP2`");
+		} catch (Exception $Ex) {}
+		
+		try {
+			$Construct->Query("alter table {$Prefix}IpCityLocation add spatial index `PolygonIpRange` (`PolygonIpRange`)");
+		} catch (Exception $Ex) {}
+			
+		// http://jcole.us/blog/archives/2007/11/24/on-efficiently-geo-referencing-ips-with-maxmind-geoip-and-mysql-gis/
+		$Construct->Query("update {$Prefix}IpCityLocation set PolygonIpRange = geomfromwkb(polygon(linestring(
+			-- clockwise, 4 points and back to 0
+				point(IP1, -1), --  0, top left 
+				point(IP2,   -1), -- 1, top right
+				point(IP2,    1), -- 2, bottom right 
+				point(IP1,  1), -- 3, bottom left 
+				point(IP1, -1)  -- 0, back to start
+			)))");
+		SaveToConfig('Plugins.IpCityLocation.PolygonField', True);
 	}
 	
 	public function Setup() {
@@ -187,7 +258,7 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 	}
 	
 	// OBSOLETE
-	private static function GetLocalCityName($City) {
+/*	private static function GetLocalCityName($City) {
 		if (!$City) return;
 		$CityName = Null;
 		try {
@@ -201,7 +272,7 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 			Console::Message('LingvoTranslate: %s -> %s', $City, $CityName);
 		}
 		return $CityName;
-	}
+	}*/
 
 }
 
