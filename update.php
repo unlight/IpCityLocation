@@ -1,5 +1,5 @@
 <?php
-require_once dirname(__FILE__).'/../../plugins/PluginUtils/bootstrap.console.php';
+require_once dirname(__FILE__).'/../../plugins/UsefulFunctions/bootstrap.console.php';
 
 ini_set('memory_limit', '512M');
 

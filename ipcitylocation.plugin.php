@@ -11,7 +11,7 @@ $PluginInfo['IpCityLocation'] = array(
 	'Version' => '1.7.15',
 	'Date' => '16 Mar 2011',
 	'Author' => 'John Smith',
-	'RequiredPlugins' => array('PluginUtils' => '>=2.4.84')
+	'RequiredPlugins' => array('UsefulFunctions' => '>=2.4.84')
 );
 
 if (!function_exists('GetCityNameByIp')) {
