@@ -8,7 +8,7 @@ $Configuration['Plugins']['IpCityLocation']['Country'] = array('BY', 'MN', 'KZ',
 $PluginInfo['IpCityLocation'] = array(
 	'Name' => 'IpCityLocation',
 	'Description' => 'IP Geolocation. Joint database of ipgeobase.ru and geolite.maxmind.com (for developers).',
-	'Version' => '1.8.16',
+	'Version' => '1.8.17',
 	'Date' => '29 Apr 2011',
 	'Author' => 'John Smith',
 	'RequiredPlugins' => array('UsefulFunctions' => '>=2.4.84')
@@ -31,8 +31,9 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		echo $CityName;
 	}
 	
-	// Cron: every 5-th day of month on 01:30
-	public function Tick_Match_30_Minutes_01_Hours_7_Day_Handler() {
+	public function Match_15_Minutes_01_Hours_Sunday() {
+		$ForceUpdate = Console::Argument('f') !== False;
+		if (!$ForceUpdate) if ((idate('d') % 2) == 0) return;
 		$Prefix = Gdn::SQL()->Database->DatabasePrefix;
 		ini_set('memory_limit', '512M');
 		$this->GetDataFromIpGeoBase();
@@ -40,9 +41,11 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		$this->GetDataFromGeoliteMaxmind();
 		Gdn::SQL()->Query("alter table {$Prefix}IpCityLocation order by IpDifference asc");
 		Gdn::SQL()->Query("optimize table {$Prefix}IpCityLocation");
-		//if ($bPolygonField) TODO: ADD/DROP PRIMARY KEY
+		//if ($bPolygonField) TODO: ADD/DROP PRIMARY KEY [HOLD] // 14M => 11M ANY ADVANTAGES?
+		// ALTER TABLE `gdn_ipcitylocation`  DROP PRIMARY KEY;
+		// ALTER TABLE `gdn_ipcitylocation`  ADD PRIMARY KEY (`IP1`, `IP2`);
 		Gdn::PluginManager()->FireEvent('IpCityLocationUpdate');
-		SaveToConfig('Plugins.IpCityLocation.UpdateDate', Gdn_Format::ToDateTime());
+		SaveToConfig('Plugins.IpCityLocation.UpdateDate', Gdn_Format::ToDateTime());		
 	}
 	
 	public static function Get($RemoteAddr = False, $ResetCache = False) {
@@ -275,23 +278,6 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		if (!function_exists('mb_convert_encoding')) throw new Exception('mbstring extension (Multibyte String Functions) is required.');
 		$this->Structure();
 	}
-	
-	// OBSOLETE
-/*	private static function GetLocalCityName($City) {
-		if (!$City) return;
-		$CityName = Null;
-		try {
-			$CityName = LingvoTranslate($City, array('From' => 'en'));
-		} catch (Exception $Ex) {
-			Console::Message('Fail. %s', $Ex->GetMessage());
-			sleep(10);
-		}
-		if ($CityName) {
-			if (mb_convert_case($CityName, 2, 'utf-8') != $CityName) $CityName = Null;
-			Console::Message('LingvoTranslate: %s -> %s', $City, $CityName);
-		}
-		return $CityName;
-	}*/
 
 }
 

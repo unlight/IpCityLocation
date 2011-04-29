@@ -11,12 +11,12 @@ $FH = new Tick();
 require_once dirname(__FILE__).DS.'ipcitylocation.plugin.php';
 $IpCityLocationPlugin = new IpCityLocationPlugin();
 
-$IpCityLocationPlugin->Tick_Match_30_Minutes_01_Hours_7_Day_Handler();
+$IpCityLocationPlugin->Match_15_Minutes_01_Hours_Sunday();
 //$IpCityLocationPlugin->GetDataFromIpGeoBase();
-//$IpCityLocationPlugin->GetDataFromGeoliteMaxmind();
+/*$IpCityLocationPlugin->GetDataFromGeoliteMaxmind();
 
 
-/*$Prefix = Gdn::SQL()->Database->DatabasePrefix;
+$Prefix = Gdn::SQL()->Database->DatabasePrefix;
 Gdn::SQL()->Query("alter table {$Prefix}IpCityLocation order by IpDifference asc");
 Gdn::SQL()->Query("optimize table {$Prefix}IpCityLocation");
 Gdn::PluginManager()->FireEvent('IpCityLocationUpdate');*/
