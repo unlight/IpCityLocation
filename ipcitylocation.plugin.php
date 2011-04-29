@@ -8,8 +8,8 @@ $Configuration['Plugins']['IpCityLocation']['Country'] = array('BY', 'MN', 'KZ',
 $PluginInfo['IpCityLocation'] = array(
 	'Name' => 'IpCityLocation',
 	'Description' => 'IP Geolocation. Joint database of ipgeobase.ru and geolite.maxmind.com (for developers).',
-	'Version' => '1.7.15',
-	'Date' => '16 Mar 2011',
+	'Version' => '1.8.16',
+	'Date' => '29 Apr 2011',
 	'Author' => 'John Smith',
 	'RequiredPlugins' => array('UsefulFunctions' => '>=2.4.84')
 );
@@ -179,20 +179,39 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 	
 	public function GetDataFromIpGeoBase() {
 		Console::Message('Getting database from ipgeobase');
-		$File = 'http://ipgeobase.ru/files/db/Main/db_files.zip';
+		$File = 'http://ipgeobase.ru/files/db/Main/geo_files.zip';
 		self::SaveFile($File);
-		$GeoFile = file(dirname(__FILE__).DS.'cidr_ru_block.txt');
-		Gdn::SQL()->Delete('IpCityLocation', array('CountryCode' => 'RU'));
-		$Columns = array_keys(Gdn::SQL()->FetchTableSchema('IpCityLocation'));
-		$TxtColumns = array('IP1', 'IP2', 'IpRange', 'CountryCode', 'CityName', 'Region', 'District');
-		
+		$GeoFile = file(dirname(__FILE__).DS.'cities.txt');
+		$CityData = array();
+		for ($Count = count($GeoFile), $i = 0; $i < $Count; $i++) {
+			$DataLine = explode("\t", mb_convert_encoding(trim($GeoFile[$i]), 'utf-8', 'windows-1251'));
+			$CityID = $DataLine[0];
+			$City = array(
+				'CityName' => $DataLine[1],
+				'Region' => $DataLine[2],
+				'District' => $DataLine[3]
+			);
+			$CityData[$CityID] = $City;
+		}
+		//$Columns = array_keys(Gdn::SQL()->FetchTableSchema('IpCityLocation'));
+		Gdn::SQL()->Truncate('IpCityLocation');
+		$GeoFile = file(dirname(__FILE__).DS.'cidr_optim.txt');
 		for ($Count = count($GeoFile), $i = 0; $i < $Count; $i++) {
 			if (($i % 10000) == 0) Console::Message('%dK and inserting...', (int)($i/10000));
-			$GeoFile[$i] = mb_convert_encoding($GeoFile[$i], 'utf-8', 'windows-1251');
-			$RowArray = array_slice(explode("\t", $GeoFile[$i]), 0, 7);
-			$Fields = array_combine($TxtColumns, $RowArray);
+			$DataLine = explode("\t", trim($GeoFile[$i]));
+			$Fields = array(
+				'IP1' => $DataLine[0],
+				'IP2' => $DataLine[1],
+				'IpRange' => $DataLine[2],
+				'CountryCode' => $DataLine[3]
+			);
+			$CityID = $DataLine[4];
+			if (is_numeric($CityID) && array_key_exists($CityID, $CityData)) {
+				$Fields = array_merge($Fields, $CityData[$CityID]);
+			}
 			self::StaticSave($Fields);
 		}
+		unset($GeoFile);
 		Console::Message('Removing temp files...');
 		$this->RemoveGarbage();
 	}
