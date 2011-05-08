@@ -51,7 +51,7 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 	public static function Get($RemoteAddr = False, $ResetCache = False) {
 		static $Cache, $bPolygonField;
 		if ($bPolygonField === NULL) $bPolygonField = C('Plugins.IpCityLocation.PolygonField');
-		if (!$RemoteAddr) $RemoteAddr = GetIpAddress();
+		if (!$RemoteAddr) $RemoteAddr = RealIpAddress();
 		if (!isset($Cache[$RemoteAddr]) || $ResetCache) {
 			$SQL = Gdn::SQL();
 			if ($bPolygonField) {
