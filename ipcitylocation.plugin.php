@@ -31,7 +31,7 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		echo $CityName;
 	}
 	
-	public function Match_15_Minutes_01_Hours_Sunday() {
+	public function Match_15_Minutes_01_Hours_Sunday_Handler() {
 		$ForceUpdate = Console::Argument('f') !== False;
 		if (!$ForceUpdate) if ((idate('d') % 2) == 0) return;
 		$Prefix = Gdn::SQL()->Database->DatabasePrefix;
