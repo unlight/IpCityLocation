@@ -41,31 +41,20 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		$this->GetDataFromGeoliteMaxmind();
 		Gdn::SQL()->Query("alter table {$Prefix}IpCityLocation order by IpDifference asc");
 		Gdn::SQL()->Query("optimize table {$Prefix}IpCityLocation");
-		//if ($bPolygonField) TODO: ADD/DROP PRIMARY KEY [HOLD] // 14M => 11M ANY ADVANTAGES?
-		// ALTER TABLE `gdn_ipcitylocation`  DROP PRIMARY KEY;
-		// ALTER TABLE `gdn_ipcitylocation`  ADD PRIMARY KEY (`IP1`, `IP2`);
 		Gdn::PluginManager()->FireEvent('IpCityLocationUpdate');
 		SaveToConfig('Plugins.IpCityLocation.UpdateDate', Gdn_Format::ToDateTime());		
 	}
 	
 	public static function Get($RemoteAddr = False, $ResetCache = False) {
-		static $Cache, $bPolygonField;
-		if ($bPolygonField === NULL) $bPolygonField = C('Plugins.IpCityLocation.PolygonField');
+		static $Cache;
 		if (!$RemoteAddr) $RemoteAddr = RealIpAddress();
 		if (!isset($Cache[$RemoteAddr]) || $ResetCache) {
 			$SQL = Gdn::SQL();
-			if ($bPolygonField) {
-				$RemoteAddr = $SQL->NamedParameter('RemoteAddr', False, $RemoteAddr);
-				$SQL->Where("mbrcontains(PolygonIpRange, pointfromwkb(point($RemoteAddr, 0)))", Null, False, False);
-			} else {
-				$SQL
-					->Where('IP2 >=', $RemoteAddr, False, False)
-					->Where('IP1 <=', $RemoteAddr, False, False)
-					->OrderBy('IpDifference', 'asc');
-			}
+			$RemoteAddr = $SQL->NamedParameter('RemoteAddr', False, $RemoteAddr);
 			$Cache[$RemoteAddr] = $SQL
 				->Select('*')
 				->From('IpCityLocation')
+				->Where("mbrcontains(PolygonIpRange, pointfromwkb(point($RemoteAddr, 0)))", Null, False, False)
 				->Limit(1)
 				->Get()
 				->FirstRow();
@@ -271,7 +260,6 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 				point(IP1,  1), -- 3, bottom left 
 				point(IP1, -1)  -- 0, back to start
 			)))");
-		SaveToConfig('Plugins.IpCityLocation.PolygonField', True);
 	}
 	
 	public function Setup() {
