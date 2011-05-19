@@ -266,8 +266,8 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		$Construct->Query("update {$Prefix}IpCityLocation set PolygonIpRange = geomfromwkb(polygon(linestring(
 			-- clockwise, 4 points and back to 0
 				point(IP1, -1), --  0, top left 
-				point(IP2,   -1), -- 1, top right
-				point(IP2,    1), -- 2, bottom right 
+				point(IP2, -1), -- 1, top right
+				point(IP2,  1), -- 2, bottom right 
 				point(IP1,  1), -- 3, bottom left 
 				point(IP1, -1)  -- 0, back to start
 			)))");
