@@ -8,8 +8,8 @@ $Configuration['Plugins']['IpCityLocation']['Country'] = array('BY', 'MN', 'KZ',
 $PluginInfo['IpCityLocation'] = array(
 	'Name' => 'IpCityLocation',
 	'Description' => 'IP Geolocation. Joint database of ipgeobase.ru and geolite.maxmind.com (for developers).',
-	'Version' => '1.8.17',
-	'Date' => '29 Apr 2011',
+	'Version' => '1.8t',
+	'Date' => 'Summer 2011',
 	'Author' => 'John Smith',
 	'RequiredPlugins' => array('UsefulFunctions' => '>=2.4.84')
 );
@@ -31,7 +31,7 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		echo $CityName;
 	}
 	
-	public function Match_15_Minutes_01_Hours_Sunday_Handler() {
+	public function Tick_Match_15_Minutes_01_Hours_Sunday_Handler() {
 		$ForceUpdate = Console::Argument('f') !== False;
 		if (!$ForceUpdate) if ((idate('d') % 2) == 0) return;
 		$Prefix = Gdn::SQL()->Database->DatabasePrefix;
