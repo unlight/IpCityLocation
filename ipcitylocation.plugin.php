@@ -1,14 +1,9 @@
 <?php if (!defined('APPLICATION')) exit();
 
-/*
-CONFIG:
-$Configuration['Plugins']['IpCityLocation']['Country'] = array('BY', 'MN', 'KZ', 'UA');
-*/
-
 $PluginInfo['IpCityLocation'] = array(
 	'Name' => 'IpCityLocation',
 	'Description' => 'IP Geolocation. Joint database of ipgeobase.ru and geolite.maxmind.com (for developers).',
-	'Version' => '1.8t',
+	'Version' => '1.8.18',
 	'Date' => 'Summer 2011',
 	'Author' => 'John Smith',
 	'RequiredPlugins' => array('UsefulFunctions' => '>=2.4.84')
@@ -31,7 +26,7 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		echo $CityName;
 	}
 	
-	public function Tick_Match_15_Minutes_01_Hours_Sunday_Handler() {
+	public function Match_15_Minutes_01_Hours_Sunday() {
 		$ForceUpdate = Console::Argument('f') !== False;
 		if (!$ForceUpdate) if ((idate('d') % 2) == 0) return;
 		$Prefix = Gdn::SQL()->Database->DatabasePrefix;
@@ -48,18 +43,18 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 	public static function Get($RemoteAddr = False, $ResetCache = False) {
 		static $Cache;
 		if (!$RemoteAddr) $RemoteAddr = RealIpAddress();
-		if (!isset($Cache[$RemoteAddr]) || $ResetCache) {
+		$Result =& $Cache[$RemoteAddr];
+		if (is_null($Result) || $ResetCache) {
 			$SQL = Gdn::SQL();
 			$RemoteAddr = $SQL->NamedParameter('RemoteAddr', False, $RemoteAddr);
-			$Cache[$RemoteAddr] = $SQL
+			$Result = $SQL
 				->Select('*')
+				->Where("mbrcontains(PolygonIpRange, pointfromwkb(point($RemoteAddr, 0)))", Null, False, False);
 				->From('IpCityLocation')
-				->Where("mbrcontains(PolygonIpRange, pointfromwkb(point($RemoteAddr, 0)))", Null, False, False)
 				->Limit(1)
 				->Get()
 				->FirstRow();
 		}
-		$Result = $Cache[$RemoteAddr];
 		return $Result;
 	}
 
@@ -222,7 +217,7 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		Redirect('settings/plugins/all/IpCityLocation/'.$TransientKey);
 	}
 	
-	public function Structure() {
+	private function PluginStructure() {
 		
 		$Construct = Gdn::Structure();
 		$SQL = Gdn::SQL();
@@ -264,7 +259,7 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 	
 	public function Setup() {
 		if (!function_exists('mb_convert_encoding')) throw new Exception('mbstring extension (Multibyte String Functions) is required.');
-		$this->Structure();
+		$this->PluginStructure();
 	}
 
 }
