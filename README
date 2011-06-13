@@ -1,0 +1,3 @@
+CONFIGURATION
+=============
+$Configuration['Plugins']['IpCityLocation']['Country'] = array('BY', 'MN', 'KZ', 'UA');
