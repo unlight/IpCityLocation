@@ -49,7 +49,7 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 			$RemoteAddr = $SQL->NamedParameter('RemoteAddr', False, $RemoteAddr);
 			$Result = $SQL
 				->Select('*')
-				->Where("mbrcontains(PolygonIpRange, pointfromwkb(point($RemoteAddr, 0)))", Null, False, False);
+				->Where("mbrcontains(PolygonIpRange, pointfromwkb(point($RemoteAddr, 0)))", Null, False, False)
 				->From('IpCityLocation')
 				->Limit(1)
 				->Get()
