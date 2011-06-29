@@ -3,7 +3,7 @@
 $PluginInfo['IpCityLocation'] = array(
 	'Name' => 'IpCityLocation',
 	'Description' => 'IP Geolocation. Joint database of ipgeobase.ru and geolite.maxmind.com (for developers).',
-	'Version' => '1.8.18',
+	'Version' => '1.8.19',
 	'Date' => 'Summer 2011',
 	'Author' => 'John Smith',
 	'RequiredPlugins' => array('UsefulFunctions' => '>=2.4.84')
@@ -26,7 +26,7 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		echo $CityName;
 	}
 	
-	public function Match_15_Minutes_01_Hours_Sunday_Handler() {
+	public function Match_15_Minutes_01_Hour_Sunday_Handler() {
 		ini_set('memory_limit', '512M');
 		$ForceUpdate = Console::Argument('f') !== False;
 		if (!$ForceUpdate) if ((idate('d') % 2) == 0) return;
@@ -58,20 +58,6 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		return $Result;
 	}
 
-	private static function SaveFile($File) {
-		$Filename = dirname(__FILE__) . DS . pathinfo($File, PATHINFO_BASENAME);
-		if (!file_exists($Filename)) file_put_contents($Filename, file_get_contents($File));
-		$PluginDirectory = dirname(__FILE__);
-		if (LoadExtension('zip', False)) {
-			$Zip = new ZipArchive();
-			$Zip->Open($Filename);
-			$Zip->ExtractTo($PluginDirectory);
-			$Zip->Close();
-		} else {
-			exec("unzip {$Filename} -d {$PluginDirectory}", $Result);
-		}
-	}
-	
 	public function GetDataFromGeoliteMaxmind() {
 
 		$Database = Gdn::Database();
@@ -81,12 +67,11 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		
 		// Get last version in CSV format
 		$Base = 'http://geolite.maxmind.com/download/geoip/database/GeoLiteCity_CSV/';
-		$Doc = PqDocument($Base.'?C=M;O=D');
-
+		$Doc = PqDocument($Base.'?C=M;O=D', array('FixHtml' => False));
 		$File = $Base . Pq('a[href^="GeoLiteCity"]')->Attr('href');
+		
 		self::SaveFile($File);
 		$Directory = pathinfo($File, PATHINFO_FILENAME);
-		
 		
 		$CSVFile = dirname(__FILE__).DS.$Directory.DS.'GeoLiteCity-Location.csv';
 		$OnlyCountry = C('Plugins.IpCityLocation.Country', array('BY', 'MN', 'KZ', 'UA'));
@@ -203,9 +188,23 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		$this->RemoveGarbage();
 	}
 	
+	private static function SaveFile($File) {
+		$Filename = dirname(__FILE__) . DS . pathinfo($File, PATHINFO_BASENAME);
+		if (!file_exists($Filename)) file_put_contents($Filename, file_get_contents($File));
+		$PluginDirectory = dirname(__FILE__);
+		if (LoadExtension('zip', False)) {
+			$Zip = new ZipArchive();
+			$Zip->Open($Filename);
+			$Zip->ExtractTo($PluginDirectory);
+			$Zip->Close();
+		} else {
+			exec("unzip {$Filename} -d {$PluginDirectory}", $Result);
+		}
+	}
+	
 	private function RemoveGarbage() {
 		$Garbage = SafeGlob(dirname(__FILE__).DS.'*.*', array('zip', 'db', 'txt'));
-		foreach($Garbage as $F) unlink($F);
+		foreach ($Garbage as $F) unlink($F);
 	}
 
 	// plugin/reenableipcitylocation
