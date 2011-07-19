@@ -3,7 +3,7 @@
 $PluginInfo['IpCityLocation'] = array(
 	'Name' => 'IpCityLocation',
 	'Description' => 'IP Geolocation. Joint database of ipgeobase.ru and geolite.maxmind.com (for developers).',
-	'Version' => '1.8.19',
+	'Version' => '1.8.20',
 	'Date' => 'Summer 2011',
 	'Author' => 'John Smith',
 	'RequiredPlugins' => array('UsefulFunctions' => '>=2.4.84')
@@ -223,9 +223,6 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		$Prefix = $SQL->Database->DatabasePrefix;
 		
 		$Construct
-			->Table('IpCityLocation');
-		
-		$Construct
 			->Table('IpCityLocation')
 			->Column('IP1', 'uint', False, 'primary')
 			->Column('IP2', 'uint', False, 'primary')
@@ -239,11 +236,25 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		
 		try {
 			$Construct->Query("alter table {$Prefix}IpCityLocation add column `PolygonIpRange` polygon not null after `IP2`");
-		} catch (Exception $Ex) {}
+		} catch (Exception $Ex) {
+		}
 		
 		try {
 			$Construct->Query("alter table {$Prefix}IpCityLocation add spatial index `PolygonIpRange` (`PolygonIpRange`)");
-		} catch (Exception $Ex) {}
+		} catch (Exception $Ex) {
+		}
+			
+		// Insert dummy range
+		$IP1 = 0;
+		$IP2 = RealIpAddress('255.255.255.255');
+		$PolygonIpRange = $SQL->Query("select geomfromwkb(polygon(linestring(point($IP1, -1), point($IP2, -1), point($IP2, 1), point($IP1, 1), point($IP1, -1)))) as P");
+		$PolygonIpRange = $PolygonIpRange->Value('P');
+		$SQL->Insert('IpCityLocation', array(
+			'IP1' => $IP1,
+			'IP2' => $IP2,
+			'IpDifference' => $IP2,
+			'PolygonIpRange' => $PolygonIpRange
+		));
 			
 		// http://jcole.us/blog/archives/2007/11/24/on-efficiently-geo-referencing-ips-with-maxmind-geoip-and-mysql-gis/
 		$Construct->Query("update {$Prefix}IpCityLocation set PolygonIpRange = geomfromwkb(polygon(linestring(
@@ -254,6 +265,8 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 				point(IP1,  1), -- 3, bottom left 
 				point(IP1, -1)  -- 0, back to start
 			)))");
+		
+
 	}
 	
 	public function Setup() {
@@ -262,4 +275,3 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 	}
 
 }
-
