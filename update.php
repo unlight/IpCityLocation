@@ -9,6 +9,6 @@ $FH = new Tick();
 require_once dirname(__FILE__).DS.'ipcitylocation.plugin.php';
 $IpCityLocationPlugin = new IpCityLocationPlugin();
 
-$IpCityLocationPlugin->Match_15_Minutes_01_Hour_Sunday_Handler();
+$IpCityLocationPlugin->Tick_Match_15_Minutes_01_Hour_Sunday_Handler();
 //$IpCityLocationPlugin->GetDataFromIpGeoBase();
 //$IpCityLocationPlugin->GetDataFromGeoliteMaxmind();

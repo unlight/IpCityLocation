@@ -26,7 +26,7 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		echo $CityName;
 	}
 	
-	public function Match_15_Minutes_01_Hour_Sunday_Handler() {
+	public function Tick_Match_15_Minutes_01_Hour_Sunday_Handler() {
 		ini_set('memory_limit', '512M');
 		$ForceUpdate = Console::Argument('f') !== False;
 		if (!$ForceUpdate) if ((idate('d') % 2) == 0) return;
