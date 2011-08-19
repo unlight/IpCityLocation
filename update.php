@@ -5,7 +5,6 @@ ini_set('memory_limit', '512M');
 
 // nothing here …
 
-$FH = new Tick();
 require_once dirname(__FILE__).DS.'ipcitylocation.plugin.php';
 $IpCityLocationPlugin = new IpCityLocationPlugin();
 
