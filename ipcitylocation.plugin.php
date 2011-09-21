@@ -3,7 +3,7 @@
 $PluginInfo['IpCityLocation'] = array(
 	'Name' => 'IpCityLocation',
 	'Description' => 'IP Geolocation. Joint database of ipgeobase.ru and geolite.maxmind.com (for developers).',
-	'Version' => '1.8.20',
+	'Version' => '1.8.21',
 	'Date' => 'Summer 2011',
 	'Author' => 'John Smith',
 	'RequiredPlugins' => array('UsefulFunctions' => '>=2.4.84')
@@ -26,7 +26,7 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		echo $CityName;
 	}
 	
-	public function Tick_Match_15_Minutes_01_Hour_Sunday_Handler() {
+	public function Tick_Match_15_Minutes_01_Hours_Saturday_Handler() {
 		ini_set('memory_limit', '512M');
 		$ForceUpdate = Console::Argument('f') !== False;
 		if (!$ForceUpdate) if ((idate('d') % 2) == 0) return;
@@ -67,6 +67,7 @@ class IpCityLocationPlugin implements Gdn_IPlugin {
 		
 		// Get last version in CSV format
 		$Base = 'http://geolite.maxmind.com/download/geoip/database/GeoLiteCity_CSV/';
+		Console::Message($Base);
 		$Doc = PqDocument($Base.'?C=M;O=D', array('FixHtml' => False));
 		$File = $Base . Pq('a[href^="GeoLiteCity"]')->Attr('href');
 		
